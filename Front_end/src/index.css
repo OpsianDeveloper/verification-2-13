@@ -1,0 +1,92 @@
+
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 250 100% 97%;
+    --foreground: 250 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 250 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 250 95% 10%;
+    --primary: 210 50% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 91% 60%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 250 10% 95%;
+    --muted-foreground: 250 5% 40%;
+    --accent: 210 50% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 250 20% 90%;
+    --input: 250 20% 90%;
+    --ring: 210 50% 60%;
+    --radius: 0.5rem;
+    --success: 142 76% 36%;
+    --warning: 38 92% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply text-foreground;
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1)), url('/background.jpg') no-repeat center center fixed;
+    background-size: cover;
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .glass-hover {
+    @apply glass transition-all duration-300 hover:bg-white/20 hover:shadow-lg hover:scale-105;
+  }
+  
+  .glass-button {
+    background: rgba(255, 255, 255, 0.3) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    color: white !important;
+    transition: all 0.2s ease;
+  }
+  
+  .glass-button:hover {
+    background: rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  }
+  
+  .glass-dropdown {
+    background: rgba(30, 41, 59, 0.95) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  }
+  
+  .gradient-bg {
+    background: linear-gradient(135deg, hsl(210, 50%, 60%) 0%, hsl(217, 91%, 60%) 100%);
+  }
+  
+  .gradient-button {
+    background: linear-gradient(135deg, hsl(210, 50%, 60%) 0%, hsl(217, 91%, 60%) 100%);
+  }
+  
+  .text-glow {
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+  }
+}
