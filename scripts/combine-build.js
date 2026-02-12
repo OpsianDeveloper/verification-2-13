@@ -16,15 +16,13 @@ const publicDir = path.join(currentDir, 'public');
 // --- Step 1: Frontend Build ---
 console.log('--- Building Frontend ---');
 
-// Install frontend dependencies if needed
-if (!fs.existsSync(path.join(frontendDir, 'node_modules'))) {
-    console.log('Installing frontend dependencies...');
-    run('npm install', frontendDir);
-}
+// Install frontend dependencies
+console.log('Installing frontend dependencies...');
+run('npm ci', frontendDir);
 
 // Build frontend
 console.log('Building Vite app...');
-run('npm run build', frontendDir);
+run('npx vite build', frontendDir);
 
 // --- Step 2: Move Artifacts ---
 console.log('--- Moving Frontend Artifacts ---');
