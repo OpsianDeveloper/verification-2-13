@@ -237,30 +237,61 @@ function clampInt(n, min, max) {
 }
 
 // Helper: Get Access Code from DB based on Schedule
+// Helper: Get Access Code from DB based on Schedule
 async function getAccessCode() {
-  // Hardcoded for Asia/Bangkok (UTC+7)
-  const now = new Date();
-  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
-  const bangkokOffset = 7 * 60 * 60000;
-  const bangkokTime = new Date(utc + bangkokOffset);
-
-  // JS getDay(): 0=Sun, 1=Mon... 6=Sat
-  // DB likely uses 0 or 1 for Mon. Let's assume standard 1=Mon, 7=Sun or 0=Sun. 
-  // CSV 'dow' column had '1'. Assuming 1=Monday for now.
-  const dayIndex = bangkokTime.getDay();
-  // Map JS (0=Sun) to what is likely DB (1=Mon..7=Sun or 0=Sun). 
-  // If DB is 1=Monday, then: 1->1, 2->2... 0->7.
-  // We'll try implicit mapping or just use dayIndex if it matches standard SQL ISODOW.
-  // Safest: check both 0 and 7 for Sunday if unsure, or just try to match.
-  // Let's assume 1=Monday, 2=Tuesday, ..., 7=Sunday.
-  const dow = dayIndex === 0 ? 7 : dayIndex;
-
-  const currentHour = bangkokTime.getHours();
-  const currentMin = bangkokTime.getMinutes();
-  const totalMins = currentHour * 60 + currentMin;
-
-  // Query door_code_schedule
   try {
+    const now = new Date();
+
+    // Use Intl to get robust Bangkok time parts
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Bangkok',
+      hour12: false,
+      weekday: 'numeric', // 1=Mon, 7=Sun (Warning: verify this)
+      hour: 'numeric',
+      minute: 'numeric'
+    });
+
+    const parts = formatter.formatToParts(now);
+    const getPart = (type) => parts.find(p => p.type === type)?.value;
+
+    const weekdayStr = getPart('weekday'); // "1"
+    const hourStr = getPart('hour');       // "16"
+    const minuteStr = getPart('minute');   // "15"
+
+    // Intl weekday: 1=Monday ... 7=Sunday (if locale en-US stays consistent with standard)
+    // Actually en-US might return "Monday" if 'weekday': 'long'. 
+    // Let's use 'numeric' -> 1 is Monday? No, usually Sunday is 1 or 7?
+    // Let's debug this locally first or assume 1=Monday based on common Intl behavior? 
+    // Wait, Intl 'numeric' weekday relies on calendar. 
+
+    // SAFER APPROACH: Use getDay() on a shifted date constructed correctly OR map string.
+    // Let's use 'short' -> "Mon", "Tue" and map it manually to be 100% sure.
+  } catch (e) {
+    // ...
+  }
+}
+
+// RETRY: Better Logic using toLocaleString
+async function getAccessCode() {
+  try {
+    const now = new Date();
+
+    const options = { timeZone: 'Asia/Bangkok', hour12: false, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' };
+    const bangkokStr = now.toLocaleString('en-US', options);
+    const bangkokDate = new Date(bangkokStr); // This creates a Date object reflecting the components in LOCAL time
+
+    // Now bangkokDate.getDay() returns local DOW for the "Bangkok time" components
+    // e.g. if Bangkok is Friday 16:00, bangkokDate is "Friday 16:00 Local".
+
+    const dayIndex = bangkokDate.getDay(); // 0=Sun, 1=Mon...
+    const dow = dayIndex === 0 ? 7 : dayIndex; // 1=Mon...7=Sun
+
+    const currentHour = bangkokDate.getHours();
+    const currentMin = bangkokDate.getMinutes();
+    const totalMins = currentHour * 60 + currentMin;
+
+    console.log(`[getAccessCode] Bangkok Time: ${currentHour}:${currentMin} (dow=${dow}, mins=${totalMins})`);
+
     const { data, error } = await supabase
       .from("door_code_schedule")
       .select("access_code")
@@ -278,7 +309,7 @@ async function getAccessCode() {
     if (data && data.length > 0) {
       return data[0].access_code;
     }
-    return null; // No code active for this time
+    return null;
   } catch (err) {
     console.error("Exception fetching access code:", err);
     return null;

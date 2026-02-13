@@ -30,7 +30,7 @@ const CameraCapture = ({ onCapture, facingMode, overlayType }: Props) => {
     try {
       setIsLoading(true);
       setError("");
-      
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode,
@@ -43,11 +43,24 @@ const CameraCapture = ({ onCapture, facingMode, overlayType }: Props) => {
         videoRef.current.srcObject = mediaStream;
         setStream(mediaStream);
       }
-      
+
       setIsLoading(false);
     } catch (err) {
       console.error("Camera error:", err);
-      setError("Camera access denied. Please enable camera permissions in your browser settings.");
+
+      let msg = "Camera access denied. Please enable camera permissions.";
+
+      if (!window.isSecureContext) {
+        msg = "Camera requires a secure connection (HTTPS). If testing locally on mobile, you cannot use http://192.x.x.x. You must use localhost (desktop) or deploy to Vercel (HTTPS).";
+      } else if ((err as any).name === "NotAllowedError") {
+        msg = "Permission denied. Please allow camera access in your browser settings.";
+      } else if ((err as any).name === "NotFoundError") {
+        msg = "No camera found on this device.";
+      } else if ((err as any).name === "NotReadableError") {
+        msg = "Camera is in use by another application.";
+      }
+
+      setError(msg);
       setIsLoading(false);
     }
   };
@@ -165,7 +178,7 @@ const CameraCapture = ({ onCapture, facingMode, overlayType }: Props) => {
             <p className="text-white text-lg">{t('common.loading')}</p>
           </div>
         )}
-        
+
         <video
           ref={videoRef}
           autoPlay
