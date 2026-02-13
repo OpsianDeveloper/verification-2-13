@@ -3,11 +3,15 @@ import { Button } from '@/components/ui/button';
 import { Globe } from 'lucide-react';
 
 const LanguageSwitcher = () => {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
 
   const toggleLanguage = () => {
-    const newLang = i18n.language === 'en' ? 'th' : 'en';
+    const current = i18n.resolvedLanguage || i18n.language || 'en';
+    const isEnglish = current.startsWith('en');
+    const newLang = isEnglish ? 'th' : 'en';
+
     i18n.changeLanguage(newLang);
+    localStorage.setItem('opsian_lang', newLang);
   };
 
   return (
@@ -15,10 +19,10 @@ const LanguageSwitcher = () => {
       variant="ghost"
       size="sm"
       onClick={toggleLanguage}
-      className="text-white/80 hover:text-white hover:bg-white/10"
+      className="text-white hover:text-white hover:bg-white/10"
     >
       <Globe className="h-4 w-4 mr-2" />
-      {i18n.language === 'en' ? 'ไทย' : 'EN'}
+      {t('common.current_language_name')}
     </Button>
   );
 };
