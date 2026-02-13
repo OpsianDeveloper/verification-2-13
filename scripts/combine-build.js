@@ -18,7 +18,7 @@ console.log('--- Building Frontend ---');
 
 // Install frontend dependencies
 console.log('Installing frontend dependencies...');
-run('npm ci', frontendDir);
+run('npm install --production=false', frontendDir);
 
 // Build frontend
 console.log('Building Vite app...');

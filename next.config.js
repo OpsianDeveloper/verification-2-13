@@ -2,12 +2,12 @@ module.exports = {
   async rewrites() {
     return [
       {
-        source: '/:path*',
-        destination: '/index.html',
+        source: '/api/:path*',
+        destination: '/api/:path*',
       },
       {
-        source: '/assets/:path*',
-        destination: '/assets/:path*',
+        source: '/:path*',
+        destination: '/index.html',
       }
     ];
   },
