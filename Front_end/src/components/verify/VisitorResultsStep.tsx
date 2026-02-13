@@ -44,7 +44,7 @@ const VisitorResultsStep = ({ data, onHome }: Props) => {
 
     const raw = (data.visitorAccessCode || "").toString().trim();
     if (!raw.length) {
-      console.warn("[VisitorResults] No access code available in data");
+      console.warn("[VisitorResults v1.1] No access code available in data. Raw:", data);
       return "PENDING";
     }
     return raw;

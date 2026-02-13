@@ -112,7 +112,7 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
       } catch (valError) {
         console.error("[Document] Validation request failed:", valError);
         toast({
-          title: "Validation Service Unavailable",
+          title: "Validation Service Unavailable (v1.1)",
           description: "Could not validate document. Please try again or ensure you have a stable connection.",
           variant: "destructive",
         });
