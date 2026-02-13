@@ -23,6 +23,15 @@ const s3 = new S3Client({ region: AWS_REGION });
 const rekognition = new RekognitionClient({ region: AWS_REGION });
 const textract = new TextractClient({ region: AWS_REGION });
 
+// Increase body size limit for large image payloads
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "5mb",
+    },
+  },
+};
+
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Credentials", "true");
   res.setHeader("Access-Control-Allow-Origin", "*");
