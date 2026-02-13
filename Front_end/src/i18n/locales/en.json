@@ -100,7 +100,14 @@
     "confirm": "Confirm & Upload",
     "uploading": "Uploading...",
     "captureButton": "Capture Document",
-    "nextGuestMessage": "Guest {{verified}} verified. Guest {{next}}, please upload your ID."
+    "nextGuestMessage": "Guest {{verified}} verified. Guest {{next}}, please upload your ID.",
+    "validationFailed": "Document Not Accepted",
+    "errorNotAnId": "This doesn't appear to be an ID document. Please take a clear photo of your passport or national ID card.",
+    "errorNoFace": "No photo detected on the document. Please ensure the photo on your ID is clearly visible.",
+    "errorNotReadable": "The text on your document is not readable. Please retake in better lighting with the document flat.",
+    "errorBlurry": "The document photo is too blurry. Please hold your device steady and ensure the document is in focus.",
+    "errorTooSmall": "The image is too small. Please move closer to the document and retake.",
+    "errorGeneric": "Could not validate the document. Please retake the photo with your ID clearly visible."
   },
   "selfie": {
     "title": "Facial Verification",
@@ -120,7 +127,16 @@
     "identityVerified": "Identity verified!",
     "verificationComplete": "Verification complete - check results",
     "verificationFailed": "Verification failed",
-    "retakeSelfie": "Please retake your selfie."
+    "retakeSelfie": "Please retake your selfie.",
+    "validationFailed": "Selfie Not Accepted",
+    "errorNoFace": "No face detected. Please position your face within the circle and try again.",
+    "errorMultipleFaces": "Multiple faces detected. Please ensure only your face is in the frame.",
+    "errorTooDark": "The image is too dark. Please move to a well-lit area and retake.",
+    "errorBlurry": "The selfie is too blurry. Please hold your device steady and try again.",
+    "errorEyesClosed": "Your eyes appear to be closed. Please keep your eyes open and retake.",
+    "errorLowConfidence": "Could not clearly detect your face. Please face the camera directly with good lighting.",
+    "errorTooSmall": "The image is too small. Please move closer to the camera.",
+    "errorGeneric": "Could not validate the selfie. Please retake with your face clearly visible."
   },
   "results": {
     "successTitle": "Verification Successful!",

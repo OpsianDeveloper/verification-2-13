@@ -32,6 +32,23 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
     setCapturedImage(null);
   };
 
+  const getDocumentErrorMessage = (reason: string): string => {
+    switch (reason) {
+      case "not_an_id":
+        return t('document.errorNotAnId');
+      case "no_face_detected":
+        return t('document.errorNoFace');
+      case "not_readable":
+        return t('document.errorNotReadable');
+      case "too_blurry":
+        return t('document.errorBlurry');
+      case "image_too_small":
+        return t('document.errorTooSmall');
+      default:
+        return t('document.errorGeneric');
+    }
+  };
+
   const handleConfirmUpload = async () => {
     if (!capturedImage) return;
 
@@ -41,10 +58,10 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
     }
 
     setIsProcessing(true);
-    console.log("[Document] Starting upload process...");
+    console.log("[Document] Starting validation + upload process...");
 
     try {
-      // Optimize image before upload
+      // Optimize image before anything
       const optimizeResult = await optimizeImageWithGuardrails(capturedImage);
 
       if (!optimizeResult.success) {
@@ -66,6 +83,41 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
         ""
       );
 
+      // ============================================================
+      // STEP 1: Validate the document image BEFORE uploading
+      // ============================================================
+      console.log("[Document] Validating document image...");
+      try {
+        const validationResponse = await api.verify({
+          action: "validate_document",
+          image_data: cleanBase64,
+        } as any);
+
+        console.log("[Document] Validation response:", validationResponse);
+
+        if (!(validationResponse as any).document_valid) {
+          const reason = (validationResponse as any).failure_reason || "unknown";
+          console.log("[Document] Validation FAILED:", reason);
+          toast({
+            title: t('document.validationFailed'),
+            description: getDocumentErrorMessage(reason),
+            variant: "destructive",
+          });
+          setCapturedImage(null); // Reset to camera for retake
+          setIsProcessing(false);
+          return;
+        }
+
+        console.log("[Document] Validation PASSED, proceeding to upload");
+      } catch (valError) {
+        // If validation endpoint fails, log but still allow upload
+        // (don't block users if the validation service is down)
+        console.warn("[Document] Validation call failed, proceeding anyway:", (valError as Error).message);
+      }
+
+      // ============================================================
+      // STEP 2: Upload the document (existing flow)
+      // ============================================================
       console.log("[Document] Sending upload request...");
 
       const resolvedGuestName = (
@@ -86,34 +138,34 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
 
       if (response.success) {
         console.log("[Document] Upload successful, response:", response);
-        
+
         // Extract visitor access code (returned by backend for visitor flow)
-        const visitorAccessCode = 
+        const visitorAccessCode =
           (response as any).visitor_access_code ||
           (response as any).access_code ||
           (response as any).data?.visitor_access_code ||
           (response as any).data?.access_code ||
           undefined;
-        
-        const visitorAccessGrantedAt = 
+
+        const visitorAccessGrantedAt =
           (response as any).visitor_access_granted_at ||
           (response as any).data?.visitor_access_granted_at ||
           undefined;
-          
-        const visitorAccessExpiresAt = 
+
+        const visitorAccessExpiresAt =
           (response as any).visitor_access_expires_at ||
           (response as any).data?.visitor_access_expires_at ||
           undefined;
 
         console.log("[Document] Visitor access code from response:", visitorAccessCode);
-        
-        updateData({ 
+
+        updateData({
           documentImage: optimizeResult.dataUrl,
           ...(visitorAccessCode ? { visitorAccessCode } : {}),
           ...(visitorAccessGrantedAt ? { visitorAccessGrantedAt } : {}),
           ...(visitorAccessExpiresAt ? { visitorAccessExpiresAt } : {}),
         });
-        
+
         toast({ title: "Document uploaded successfully!" });
         onNext();
       } else {
@@ -151,19 +203,19 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
       </Button>
 
       {/* Multi-guest progress banner - only show when Guest 1+ verified AND multi-guest session */}
-      {data.verifiedGuestCount != null && 
-       data.verifiedGuestCount > 0 && 
-       data.expectedGuestCount != null && 
-       data.expectedGuestCount >= 2 && (
-        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-6 text-center border border-white/20">
-          <p className="text-white/90">
-            {t('document.nextGuestMessage', {
-              verified: data.verifiedGuestCount,
-              next: data.verifiedGuestCount + 1
-            })}
-          </p>
-        </div>
-      )}
+      {data.verifiedGuestCount != null &&
+        data.verifiedGuestCount > 0 &&
+        data.expectedGuestCount != null &&
+        data.expectedGuestCount >= 2 && (
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-6 text-center border border-white/20">
+            <p className="text-white/90">
+              {t('document.nextGuestMessage', {
+                verified: data.verifiedGuestCount,
+                next: data.verifiedGuestCount + 1
+              })}
+            </p>
+          </div>
+        )}
 
       <h2 className="text-3xl md:text-4xl font-thin text-white mb-4 text-center">
         {t('document.title')}
@@ -184,9 +236,9 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
       ) : capturedImage ? (
         <div className="space-y-6">
           <div className="relative rounded-2xl overflow-hidden border-2 border-white/20">
-            <img 
-              src={capturedImage} 
-              alt="Captured document" 
+            <img
+              src={capturedImage}
+              alt="Captured document"
               className="w-full h-auto"
             />
           </div>

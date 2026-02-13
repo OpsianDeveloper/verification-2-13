@@ -1,6 +1,6 @@
 const API_BASE_URL_KEY = 'roomquest_api_base_url';
 const API_BASE_URL_OVERRIDE_KEY = 'roomquest_api_base_url_override';
-const DEFAULT_API_URL = 'http://localhost:3000';
+const DEFAULT_API_URL = '';
 const PRODUCTION_API_URL = '';
 
 // If a previous build saved a backend URL that breaks the visitor flow,
@@ -8,6 +8,7 @@ const PRODUCTION_API_URL = '';
 // re-saves the URL in Settings (which sets the override flag).
 const DEPRECATED_API_URLS = new Set<string>([
   'https://roomquest-id-backend.vercel.app',
+  'http://localhost:3000',
 ]);
 
 export const getApiBaseUrl = (): string => {

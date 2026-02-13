@@ -4,7 +4,7 @@ import { getApiBaseUrl } from "./storage";
    ACTION TYPES
 ====================================================== */
 
-export type VerifyAction = "start" | "log_consent" | "update_guest" | "get_session" | "upload_document" | "verify_face";
+export type VerifyAction = "start" | "log_consent" | "update_guest" | "get_session" | "upload_document" | "verify_face" | "validate_document" | "validate_selfie";
 
 /* ======================================================
    REQUEST TYPES
@@ -63,6 +63,16 @@ export interface VerifyFaceRequest {
   guest_index?: number;
 }
 
+export interface ValidateDocumentRequest {
+  action: "validate_document";
+  image_data: string;
+}
+
+export interface ValidateSelfieRequest {
+  action: "validate_selfie";
+  image_data: string;
+}
+
 export type VerifyRequest =
   | StartSessionRequest
   | StartVisitorRequest
@@ -70,7 +80,9 @@ export type VerifyRequest =
   | UpdateGuestRequest
   | GetSessionRequest
   | UploadDocumentRequest
-  | VerifyFaceRequest;
+  | VerifyFaceRequest
+  | ValidateDocumentRequest
+  | ValidateSelfieRequest;
 
 /* ======================================================
    RESPONSE TYPES

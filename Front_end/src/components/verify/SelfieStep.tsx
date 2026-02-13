@@ -50,6 +50,27 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
     setCapturedImage(null);
   };
 
+  const getSelfieErrorMessage = (reason: string): string => {
+    switch (reason) {
+      case "no_face_detected":
+        return t('selfie.errorNoFace');
+      case "multiple_faces":
+        return t('selfie.errorMultipleFaces');
+      case "too_dark":
+        return t('selfie.errorTooDark');
+      case "too_blurry":
+        return t('selfie.errorBlurry');
+      case "eyes_closed":
+        return t('selfie.errorEyesClosed');
+      case "low_confidence":
+        return t('selfie.errorLowConfidence');
+      case "image_too_small":
+        return t('selfie.errorTooSmall');
+      default:
+        return t('selfie.errorGeneric');
+    }
+  };
+
   const handleConfirmUpload = async () => {
     if (!capturedImage) return;
 
@@ -59,7 +80,7 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
     }
 
     setIsProcessing(true);
-    console.log("[Selfie] Starting verification process...");
+    console.log("[Selfie] Starting validation + verification process...");
 
     try {
       // Optimize image before upload
@@ -84,6 +105,41 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
         ""
       );
 
+      // ============================================================
+      // STEP 1: Validate the selfie image BEFORE face matching
+      // ============================================================
+      console.log("[Selfie] Validating selfie image...");
+      try {
+        const validationResponse = await api.verify({
+          action: "validate_selfie",
+          image_data: cleanBase64,
+        } as any);
+
+        console.log("[Selfie] Validation response:", validationResponse);
+
+        if (!(validationResponse as any).selfie_valid) {
+          const reason = (validationResponse as any).failure_reason || "unknown";
+          console.log("[Selfie] Validation FAILED:", reason);
+          toast({
+            title: t('selfie.validationFailed'),
+            description: getSelfieErrorMessage(reason),
+            variant: "destructive",
+          });
+          setCapturedImage(null); // Reset to camera for retake
+          setIsProcessing(false);
+          return;
+        }
+
+        console.log("[Selfie] Validation PASSED, proceeding to face matching");
+      } catch (valError) {
+        // If validation endpoint fails, log but still allow verify
+        // (don't block users if the validation service is down)
+        console.warn("[Selfie] Validation call failed, proceeding anyway:", (valError as Error).message);
+      }
+
+      // ============================================================
+      // STEP 2: Run face matching (existing flow)
+      // ============================================================
       console.log("[Selfie] Sending verification request...");
 
       const verifyPayload = {
@@ -110,10 +166,10 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
       // Parse multi-guest fields from BOTH locations with type coercion
       const guestVerifiedRaw = responseData.guest_verified ?? response.guest_verified;
       // IMPORTANT: guest_verified may not exist yet - fallback to is_verified
-      const guestVerified = guestVerifiedRaw !== undefined 
-        ? parseBool(guestVerifiedRaw) 
+      const guestVerified = guestVerifiedRaw !== undefined
+        ? parseBool(guestVerifiedRaw)
         : isVerified;
-      
+
       const requiresAdditionalGuestRaw = responseData.requires_additional_guest ?? response.requires_additional_guest;
       const verifiedGuestCountRaw = responseData.verified_guest_count ?? response.verified_guest_count;
       const expectedGuestCountRaw = responseData.expected_guest_count ?? response.expected_guest_count;
@@ -159,9 +215,9 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
       const session = sessionRes.session;
 
       // Extract visitor access code from response (for visitor flow)
-      const visitorAccessCode = (response as any).access_code || 
-                                (responseData as any).access_code ||
-                                (session as any)?.visitor_access_code;
+      const visitorAccessCode = (response as any).access_code ||
+        (responseData as any).access_code ||
+        (session as any)?.visitor_access_code;
 
       if (!session) {
         console.error("[Selfie] No session in get_session response");
@@ -213,13 +269,13 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
       });
 
       // Extract Cloudbeds integration fields
-      const physicalRoom = 
-        (response as any).physical_room || 
+      const physicalRoom =
+        (response as any).physical_room ||
         (responseData as any).physical_room ||
         (session as any)?.physical_room;
-      
-      const roomAccessCode = 
-        (response as any).room_access_code || 
+
+      const roomAccessCode =
+        (response as any).room_access_code ||
         (responseData as any).room_access_code ||
         (session as any)?.room_access_code;
 
@@ -308,9 +364,9 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
       ) : capturedImage ? (
         <div className="space-y-6">
           <div className="relative rounded-2xl overflow-hidden border-2 border-white/20">
-            <img 
-              src={capturedImage} 
-              alt="Captured selfie" 
+            <img
+              src={capturedImage}
+              alt="Captured selfie"
               className="w-full h-auto"
             />
           </div>

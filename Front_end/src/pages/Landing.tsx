@@ -88,7 +88,7 @@ const Landing = () => {
         />
       </div>
 
-      <div className="relative z-10 container mx-auto px-4 py-12">
+      <div className="relative z-10 container mx-auto px-4 py-12 pb-32">
         <div className="absolute top-4 right-4">
           <LanguageSwitcher />
         </div>

@@ -322,6 +322,8 @@ export default async function handler(req, res) {
         updated_at: new Date().toISOString(),
       });
 
+      console.log(`[verify.js] Created session: ${token}`);
+
       if (error) {
         console.error("Error creating session:", error);
         return res.status(500).json({ error: "Failed to create session" });
@@ -395,6 +397,18 @@ export default async function handler(req, res) {
             "expected_guest_count",
             "verified_guest_count",
             "requires_additional_guest",
+            "visitor_first_name",
+            "visitor_last_name",
+            "visitor_phone",
+            "visitor_reason",
+            "visitor_access_code",
+            "visitor_access_granted_at",
+            "visitor_access_expires_at",
+
+            "property_external_id",
+            "door_key",
+            "physical_room",
+            "room_access_code",
             "created_at",
             "updated_at",
           ].join(",")
@@ -402,7 +416,10 @@ export default async function handler(req, res) {
         .eq("session_token", session_token)
         .single();
 
-      if (error || !session) return res.status(404).json({ error: "Session not found" });
+      if (error || !session) {
+        console.error(`[verify.js] Session not found: ${session_token}`, error);
+        return res.status(404).json({ error: "Session not found" });
+      }
 
       const current_step = inferStepFromSession(session);
       const expected = clampInt(session.expected_guest_count, 1, 10);
@@ -541,11 +558,28 @@ export default async function handler(req, res) {
       const resNorm = normalizeReservationNumber(bookingValue);
 
       // Changed const to let to allow bypass override
+      let orConditions = [
+        `confirmation_number_norm.eq.${resNorm}`,
+        `source_reservation_id_norm.eq.${resNorm}`
+      ];
+
+      // Enhanced lookup: If hyphen formatted (e.g. 12345-1), also try the parent (12345)
+      // This handles sub-reservations where the email confirmation might use the parent ID
+      if (resNorm.includes("-")) {
+        const parentNorm = resNorm.split("-")[0];
+        if (parentNorm.length > 2) {
+          orConditions.push(`confirmation_number_norm.eq.${parentNorm}`);
+          orConditions.push(`source_reservation_id_norm.eq.${parentNorm}`);
+        }
+      }
+
+      console.log(`[update_guest] Lookup guest=${guestNameNorm}, refs=${orConditions.join(" OR ")}`);
+
       let { data: matches, error: matchErr } = await supabase
         .from("booking_email_index")
         .select("id, adults, children")
         .eq("guest_name_norm", guestNameNorm)
-        .or(`confirmation_number_norm.eq.${resNorm},source_reservation_id_norm.eq.${resNorm}`)
+        .or(orConditions.join(","))
         .limit(1);
 
       if (matchErr) {
@@ -553,16 +587,7 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: "Failed to verify reservation" });
       }
 
-      // 🚨 BYPASS FOR TESTING: Patrick che / patche123
-      if ((bookingValue === "patche123" || bookingValue === "PATCHE123") &&
-        (guestNameNorm.includes("patrick") || guestNameNorm.includes("che"))) {
-        // Mock a successful match
-        matches = [{
-          id: 99999, // dummy ID
-          adults: 2,
-          children: 0
-        }];
-      }
+
 
 
 
@@ -679,6 +704,185 @@ export default async function handler(req, res) {
       });
     }
 
+    // ============================================================
+    // VALIDATE DOCUMENT (pre-check before upload)
+    // ============================================================
+    if (action === "validate_document") {
+      const { image_data } = req.body || {};
+      if (!image_data) return res.status(400).json({ error: "image_data required" });
+      if (!AWS_REGION) return res.status(500).json({ error: "Server misconfigured: missing AWS env vars" });
+
+
+
+      const base64Data = normalizeBase64(image_data);
+      if (!base64Data) return res.status(400).json({ error: "Invalid image_data format" });
+
+      const imageBuffer = Buffer.from(base64Data, "base64");
+      if (imageBuffer.length < 1000) {
+        return res.json({
+          success: true,
+          document_valid: false,
+          has_face: false,
+          is_readable: false,
+          failure_reason: "image_too_small",
+        });
+      }
+
+      // Run Textract AnalyzeID synchronously
+      const textractResult = await runTextractAnalyzeIdWithTimeout(imageBuffer, 15000);
+
+      // Run DetectFaces to check for a face on the document
+      let hasFace = false;
+      let faceQuality = null;
+      try {
+        const detectResult = await rekognition.send(
+          new DetectFacesCommand({
+            Image: { Bytes: imageBuffer },
+            Attributes: ["ALL"],
+          })
+        );
+        const faces = detectResult.FaceDetails || [];
+        hasFace = faces.length > 0;
+        if (faces.length > 0) {
+          faceQuality = {
+            brightness: faces[0]?.Quality?.Brightness || 0,
+            sharpness: faces[0]?.Quality?.Sharpness || 0,
+            confidence: faces[0]?.Confidence || 0,
+          };
+        }
+      } catch (e) {
+        console.warn("DetectFaces failed during document validation:", e?.message);
+        // If DetectFaces fails, we can't confirm a face — treat as no face
+        hasFace = false;
+      }
+
+      // Determine if Textract extracted meaningful ID fields
+      let isReadable = false;
+      if (textractResult.ok && textractResult.data) {
+        const d = textractResult.data;
+        // Consider it readable if we got at least a name OR a document number
+        const hasName = Boolean(d.full_name || d.first_name || d.last_name);
+        const hasDocNumber = Boolean(d.document_number);
+        const hasDob = Boolean(d.date_of_birth);
+        isReadable = hasName || hasDocNumber || hasDob;
+      }
+
+      // Determine overall validity and specific failure reason
+      let documentValid = hasFace && isReadable;
+      let failureReason = null;
+
+      if (!hasFace && !isReadable) {
+        failureReason = "not_an_id";
+      } else if (!hasFace) {
+        failureReason = "no_face_detected";
+      } else if (!isReadable) {
+        failureReason = "not_readable";
+      }
+
+      // Check for blur via face quality
+      if (hasFace && faceQuality && faceQuality.sharpness < 20) {
+        documentValid = false;
+        failureReason = "too_blurry";
+      }
+
+      console.log("[validate_document] Result:", {
+        documentValid,
+        hasFace,
+        isReadable,
+        failureReason,
+        textractOk: textractResult.ok,
+      });
+
+      return res.json({
+        success: true,
+        document_valid: documentValid,
+        has_face: hasFace,
+        is_readable: isReadable,
+        failure_reason: failureReason,
+        face_quality: faceQuality,
+      });
+    }
+
+    // ============================================================
+    // VALIDATE SELFIE (pre-check before verify_face)
+    // ============================================================
+    if (action === "validate_selfie") {
+      const { image_data } = req.body || {};
+      if (!image_data) return res.status(400).json({ error: "image_data required" });
+      if (!AWS_REGION) return res.status(500).json({ error: "Server misconfigured: missing AWS env vars" });
+
+
+
+      const base64Data = normalizeBase64(image_data);
+      if (!base64Data) return res.status(400).json({ error: "Invalid image_data format" });
+
+      const imageBuffer = Buffer.from(base64Data, "base64");
+      if (imageBuffer.length < 1000) {
+        return res.json({
+          success: true,
+          selfie_valid: false,
+          failure_reason: "image_too_small",
+        });
+      }
+
+      let selfieValid = false;
+      let failureReason = null;
+      let faceDetails = null;
+
+      try {
+        const detectResult = await rekognition.send(
+          new DetectFacesCommand({
+            Image: { Bytes: imageBuffer },
+            Attributes: ["ALL"],
+          })
+        );
+
+        const faces = detectResult.FaceDetails || [];
+
+        if (faces.length === 0) {
+          failureReason = "no_face_detected";
+        } else if (faces.length > 1) {
+          failureReason = "multiple_faces";
+        } else {
+          const face = faces[0];
+          const brightness = face?.Quality?.Brightness || 0;
+          const sharpness = face?.Quality?.Sharpness || 0;
+          const eyesOpen = face?.EyesOpen?.Value;
+          const confidence = face?.Confidence || 0;
+
+          faceDetails = { brightness, sharpness, eyesOpen, confidence };
+
+          if (brightness < 30) {
+            failureReason = "too_dark";
+          } else if (sharpness < 20) {
+            failureReason = "too_blurry";
+          } else if (eyesOpen === false) {
+            failureReason = "eyes_closed";
+          } else if (confidence < 80) {
+            failureReason = "low_confidence";
+          } else {
+            selfieValid = true;
+          }
+        }
+      } catch (e) {
+        console.error("DetectFaces failed during selfie validation:", e?.message);
+        failureReason = "detection_error";
+      }
+
+      console.log("[validate_selfie] Result:", {
+        selfieValid,
+        failureReason,
+        faceDetails,
+      });
+
+      return res.json({
+        success: true,
+        selfie_valid: selfieValid,
+        failure_reason: failureReason,
+        face_details: faceDetails,
+      });
+    }
+
     if (action === "upload_document") {
       const { session_token, image_data } = req.body || {};
 
@@ -705,6 +909,8 @@ export default async function handler(req, res) {
       // ✅ next guest to verify
       const guestIndex = clampInt(verifiedBefore + 1, 1, expected);
 
+
+
       const base64Data = normalizeBase64(image_data);
       if (!base64Data) return res.status(400).json({ error: "Invalid image_data format" });
 
@@ -712,6 +918,8 @@ export default async function handler(req, res) {
       if (imageBuffer.length < 1000) return res.status(400).json({ error: "Image too small" });
 
       const s3Key = `demo/${session_token}/document_${guestIndex}.jpg`;
+
+
 
       await s3.send(
         new PutObjectCommand({
@@ -746,6 +954,46 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: "Failed to save document state" });
       }
 
+      // ✅ SYNC VISITOR CODE GENERATION:
+      // If visitor, we MUST generate code now so it's ready for the immediate next step (results)
+      // The Textract job runs asynchronously for metadata, but we can't wait for that to issue the code.
+
+      const isVisitorSession = sess.extracted_info?.type === "visitor" || sess.room_number === "VISITOR";
+
+      // We also update this variable so the async block knows we handled it
+      let visitorCodeData = null;
+
+      if (isVisitorSession) {
+        console.log("[upload_document] Visitor detected (sync), generating access code...");
+        const access_code = await getAccessCode();
+
+        if (access_code) {
+          const now = new Date();
+          const expiresAt = new Date(now.getTime() + 30 * 60 * 1000); // 30 mins
+
+          visitorCodeData = {
+            visitor_access_code: access_code,
+            visitor_access_granted_at: now.toISOString(),
+            visitor_access_expires_at: expiresAt.toISOString(),
+          };
+
+          // Write immediately to DB
+          await supabase
+            .from("demo_sessions")
+            .update({
+              ...visitorCodeData,
+              status: "visitor_access_granted", // optional status update
+              updated_at: new Date().toISOString()
+            })
+            .eq("session_token", session_token);
+
+          console.log(`[upload_document] Sync visitor code generated: ${access_code}`);
+        } else {
+          console.warn("[upload_document] No access code available from schedule (sync)");
+        }
+      }
+
+      // Start Async Textract
       runTextractAnalyzeIdWithTimeout(imageBuffer, 15000)
         .then(async (result) => {
           if (result.ok) {
@@ -766,9 +1014,6 @@ export default async function handler(req, res) {
                 .filter(Boolean)
                 .join(" | ") || "Textract extracted fields";
 
-            // Check if this is a visitor session
-            const isVisitorSession = sess.extracted_info?.type === "visitor" || sess.room_number === "VISITOR";
-
             let extractedInfoUpdate = {
               text: `${extractedText} [guest ${guestIndex}]`,
               textract_ok: true,
@@ -777,23 +1022,20 @@ export default async function handler(req, res) {
               guest_index: guestIndex,
             };
 
-            // ✅ Generate access code for visitors
+            // ✅ Visitor Logic (Async Fallback/Metadata)
             if (isVisitorSession) {
-              console.log("[upload_document] Visitor detected, generating access code");
-              const access_code = await getAccessCode();
-
-              if (access_code) {
-                const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes from now
+              // If we already generated code synchronously, just ensure metadata is consistent
+              if (visitorCodeData?.visitor_access_code) {
                 extractedInfoUpdate = {
                   ...extractedInfoUpdate,
                   type: "visitor",
-                  access_code: access_code,
-                  access_code_issued_at: new Date().toISOString(),
-                  access_code_expires_at: expiresAt.toISOString(),
+                  access_code: visitorCodeData.visitor_access_code, // legacy field in json
+                  access_code_issued_at: visitorCodeData.visitor_access_granted_at,
+                  access_code_expires_at: visitorCodeData.visitor_access_expires_at,
                 };
-                console.log(`[upload_document] Access code ${access_code} generated for visitor, expires at ${expiresAt.toISOString()}`);
               } else {
-                console.warn("[upload_document] No access code available from schedule");
+                // If sync failed or wasn't run for some reason, try again (fallback)
+                // or just mark as visitor type
                 extractedInfoUpdate.type = "visitor";
               }
             }
@@ -825,13 +1067,21 @@ export default async function handler(req, res) {
           console.warn("Textract async crash:", e?.message || e);
         });
 
+      // Return response immediately
+      // If we generated a code, return it in the response too so frontend can use it immediately if it wants
       return res.json({
         success: true,
         guest_index: guestIndex,
         extracted_text: `Textract pending (async) [guest ${guestIndex}]`,
+        visitor_access_code: visitorCodeData?.visitor_access_code,
+        visitor_access_granted_at: visitorCodeData?.visitor_access_granted_at,
+        visitor_access_expires_at: visitorCodeData?.visitor_access_expires_at,
+        access_code: visitorCodeData?.visitor_access_code, // legacy compat
         data: {
           extracted_text: `Textract pending (async) [guest ${guestIndex}]`,
           guest_index: guestIndex,
+          visitor_access_code: visitorCodeData?.visitor_access_code,
+          access_code: visitorCodeData?.visitor_access_code,
         },
       });
     }
@@ -851,6 +1101,8 @@ export default async function handler(req, res) {
         .single();
 
       if (sessionError || !session) return res.status(404).json({ error: "Session not found" });
+
+
 
       const expected = clampInt(session.expected_guest_count, 1, 10);
       const verifiedBefore = clampInt(session.verified_guest_count, 0, 10);
