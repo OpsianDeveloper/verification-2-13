@@ -8,11 +8,11 @@ export interface OptimizeImageOptions {
 }
 
 const DEFAULT_OPTIONS: Required<OptimizeImageOptions> = {
-  maxWidth: 1280,
-  quality: 0.82,
+  maxWidth: 1920,
+  quality: 0.90,
 };
 
-const MAX_BASE64_SIZE = 800 * 1024; // 800KB
+const MAX_BASE64_SIZE = 1536 * 1024; // 1.5MB (Safely under Vercel's 4.5MB limit)
 
 /**
  * Optimizes an image data URL by resizing and compressing
@@ -102,8 +102,8 @@ export async function optimizeImageWithGuardrails(
   console.log("[Image] Starting optimization...");
 
   try {
-    // First attempt: quality 0.82
-    let optimized = await optimizeImageDataUrl(dataUrl, { quality: 0.82 });
+    // First attempt: quality 0.90
+    let optimized = await optimizeImageDataUrl(dataUrl, { quality: 0.90 });
     let size = getBase64Size(optimized);
     console.log(`[Image] First pass: ${Math.round(size / 1024)}KB`);
 
