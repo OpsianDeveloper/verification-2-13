@@ -98,6 +98,7 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
         const validationResponse = await api.verify({
           action: "validate_document",
           image_data: cleanBase64,
+          session_token: data.sessionToken,
         } as any);
 
         console.log("[Document] Validation response:", validationResponse);

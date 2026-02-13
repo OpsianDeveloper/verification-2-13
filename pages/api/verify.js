@@ -731,7 +731,7 @@ export default async function handler(req, res) {
     // VALIDATE DOCUMENT (pre-check before upload)
     // ============================================================
     if (action === "validate_document") {
-      const { image_data } = req.body || {};
+      const { image_data, session_token } = req.body || {};
       if (!image_data) return res.status(400).json({ error: "image_data required" });
       if (!AWS_REGION) return res.status(500).json({ error: "Server misconfigured: missing AWS env vars" });
 
@@ -790,8 +790,24 @@ export default async function handler(req, res) {
         isReadable = hasName || hasDocNumber || hasDob;
       }
 
+      // Determine if this is a visitor flow to allow more leniency
+      let isVisitorFlow = false;
+      if (session_token) {
+        try {
+          const { data: sess } = await supabase
+            .from("demo_sessions")
+            .select("extracted_info, room_number")
+            .eq("session_token", session_token)
+            .single();
+          isVisitorFlow = sess?.extracted_info?.type === "visitor" || sess?.room_number === "VISITOR";
+        } catch (e) {
+          console.warn("[validate_document] Could not fetch session for flow detection:", e.message);
+        }
+      }
+
       // Determine overall validity and specific failure reason
-      let documentValid = hasFace && isReadable;
+      // For visitors, we are more lenient: we allow it if a face is detected even if not readable
+      let documentValid = hasFace && (isReadable || isVisitorFlow);
       let failureReason = null;
 
       if (!hasFace && !isReadable) {
@@ -803,7 +819,7 @@ export default async function handler(req, res) {
       }
 
       // Check for blur via face quality
-      if (hasFace && faceQuality && faceQuality.sharpness < 20) {
+      if (hasFace && faceQuality && faceQuality.sharpness < 10) {
         documentValid = false;
         failureReason = "too_blurry";
       }
@@ -877,7 +893,7 @@ export default async function handler(req, res) {
 
           if (brightness < 30) {
             failureReason = "too_dark";
-          } else if (sharpness < 20) {
+          } else if (sharpness < 10) {
             failureReason = "too_blurry";
           } else if (eyesOpen === false) {
             failureReason = "eyes_closed";
