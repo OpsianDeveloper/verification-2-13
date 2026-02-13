@@ -418,6 +418,10 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
             <ul className="space-y-2 text-white/70 text-sm">
               <li className="flex items-start">
                 <span className="mr-2">•</span>
+                {t('selfie.tipsLighting')}
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2">•</span>
                 {t('selfie.tipsNoGlasses')}
               </li>
               <li className="flex items-start">
@@ -427,10 +431,6 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
               <li className="flex items-start">
                 <span className="mr-2">•</span>
                 {t('selfie.tip5')}
-              </li>
-              <li className="flex items-start">
-                <span className="mr-2">•</span>
-                {t('selfie.tipsNoGlasses')}
               </li>
             </ul>
           </div>
