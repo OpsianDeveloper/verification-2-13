@@ -110,9 +110,15 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
 
         console.log("[Document] Validation PASSED, proceeding to upload");
       } catch (valError) {
-        // If validation endpoint fails, log but still allow upload
-        // (don't block users if the validation service is down)
-        console.warn("[Document] Validation call failed, proceeding anyway:", (valError as Error).message);
+        console.error("[Document] Validation request failed:", valError);
+        toast({
+          title: "Validation Service Unavailable",
+          description: "Could not validate document. Please try again or ensure you have a stable connection.",
+          variant: "destructive",
+        });
+        setCapturedImage(null);
+        setIsProcessing(false);
+        return; // BLOCK: Do not proceed to upload if validation fails
       }
 
       // ============================================================

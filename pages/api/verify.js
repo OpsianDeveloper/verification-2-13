@@ -925,7 +925,7 @@ export default async function handler(req, res) {
       // ✅ Gate: must have completed Step 1
       const { data: sess, error: sessErr } = await supabase
         .from("demo_sessions")
-        .select("guest_name, room_number, expected_guest_count, verified_guest_count")
+        .select("guest_name, room_number, expected_guest_count, verified_guest_count, extracted_info")
         .eq("session_token", session_token)
         .single();
 
