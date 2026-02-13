@@ -2,11 +2,8 @@ module.exports = {
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
-        destination: '/api/:path*',
-      },
-      {
-        source: '/:path*',
+        // Serve the Vite SPA for all non-API, non-Next.js routes
+        source: '/:path((?!api|_next).*)',
         destination: '/index.html',
       }
     ];
