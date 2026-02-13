@@ -66,6 +66,14 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
         return t('selfie.errorLowConfidence');
       case "image_too_small":
         return t('selfie.errorTooSmall');
+      case "image_too_large":
+        return t('selfie.errorTooSmall'); // Reuse small/large logic for user
+      case "optimization_failed":
+        return t('selfie.errorGeneric');
+      case "mismatch":
+        return t('selfie.errorMismatch');
+      case "liveness_failed":
+        return t('selfie.errorLiveness');
       default:
         return t('selfie.errorGeneric');
     }
@@ -193,9 +201,16 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
       // IMPORTANT: If guest_verified is false, do NOT advance - allow retake immediately
       if (!guestVerified) {
         console.log("[Selfie] Guest verification FAILED, allowing retake");
+
+        // Determine why it failed
+        let failureReason = "mismatch";
+        if (livenessScore !== undefined && livenessScore < 0.5) {
+          failureReason = "liveness_failed";
+        }
+
         toast({
           title: t('selfie.verificationFailed'),
-          description: t('selfie.retakeSelfie'),
+          description: getSelfieErrorMessage(failureReason),
           variant: "destructive",
         });
         setCapturedImage(null); // Clear for retake
@@ -388,11 +403,34 @@ const SelfieStep = ({ data, updateData, onNext, onNextGuest, onBack, onError }: 
           </div>
         </div>
       ) : (
-        <CameraCapture
-          onCapture={handleCapture}
-          facingMode="user"
-          overlayType="face"
-        />
+        <div className="space-y-8">
+          <CameraCapture
+            onCapture={handleCapture}
+            facingMode="user"
+            overlayType="face"
+          />
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <h3 className="text-white font-medium mb-3 flex items-center">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-2" />
+              {t('selfie.tipsTitle')}
+            </h3>
+            <ul className="space-y-2 text-white/70 text-sm">
+              <li className="flex items-start">
+                <span className="mr-2">•</span>
+                {t('selfie.tipsLighting')}
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2">•</span>
+                {t('selfie.tipsNoGlasses')}
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2">•</span>
+                {t('selfie.tipsExpression')}
+              </li>
+            </ul>
+          </div>
+        </div>
       )}
     </motion.div>
   );

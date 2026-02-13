@@ -107,7 +107,14 @@
     "errorNotReadable": "The text on your document is not readable. Please retake in better lighting with the document flat.",
     "errorBlurry": "The document photo is too blurry. Please hold your device steady and ensure the document is in focus.",
     "errorTooSmall": "The image is too small. Please move closer to the document and retake.",
-    "errorGeneric": "Could not validate the document. Please retake the photo with your ID clearly visible."
+    "errorImageTooLarge": "The image file size is too large. Please try moving your camera slightly further away.",
+    "errorGeneric": "Could not validate the document. Please retake the photo with your ID clearly visible.",
+    "errorTooDark": "The image is too dark. Please move to a well-lit area and retake.",
+    "errorImageProcessing": "Failed to process the image. Please try retaking it.",
+    "tipsTitle": "Tips for a successful scan:",
+    "tipsLighting": "Ensure there is good lighting without glare on the document.",
+    "tipsSteady": "Hold your phone steady and let it focus.",
+    "tipsFlat": "Place your document on a flat surface."
   },
   "selfie": {
     "title": "Facial Verification",
@@ -136,7 +143,14 @@
     "errorEyesClosed": "Your eyes appear to be closed. Please keep your eyes open and retake.",
     "errorLowConfidence": "Could not clearly detect your face. Please face the camera directly with good lighting.",
     "errorTooSmall": "The image is too small. Please move closer to the camera.",
-    "errorGeneric": "Could not validate the selfie. Please retake with your face clearly visible."
+    "errorDetection": "Could not detect your face properly. Please try again.",
+    "errorMismatch": "The face in the selfie does not match the document. Please ensure you are the person on the ID.",
+    "errorLiveness": "Liveness check failed. Please ensure you are in a well-lit area and look directly at the camera.",
+    "errorGeneric": "Could not validate the selfie. Please retake with your face clearly visible.",
+    "tipsTitle": "Tips for a successful selfie:",
+    "tipsNoGlasses": "Remove glasses if they are causing glare.",
+    "tipsLighting": "Ensure your face is well-lit from the front.",
+    "tipsExpression": "Keep a neutral expression and look directly at the camera."
   },
   "results": {
     "successTitle": "Verification Successful!",

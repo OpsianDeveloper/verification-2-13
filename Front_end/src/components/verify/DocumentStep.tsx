@@ -42,8 +42,14 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
         return t('document.errorNotReadable');
       case "too_blurry":
         return t('document.errorBlurry');
+      case "too_dark":
+        return t('document.errorTooDark');
       case "image_too_small":
         return t('document.errorTooSmall');
+      case "image_too_large":
+        return t('document.errorImageTooLarge') || "Image size is too large. Please move slightly further away.";
+      case "optimization_failed":
+        return t('document.errorImageProcessing');
       default:
         return t('document.errorGeneric');
     }
@@ -67,11 +73,12 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
       if (!optimizeResult.success) {
         const errorResult = optimizeResult as { success: false; errorMessage: string };
         toast({
-          title: "Image too large",
-          description: errorResult.errorMessage,
+          title: t('document.validationFailed'),
+          description: getDocumentErrorMessage(errorResult.errorMessage),
           variant: "destructive",
         });
         setIsProcessing(false);
+        setCapturedImage(null); // Allow retake if optimization fails (e.g. too large)
         return;
       }
 
@@ -112,13 +119,13 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
       } catch (valError) {
         console.error("[Document] Validation request failed:", valError);
         toast({
-          title: "Validation Service Unavailable (v1.1)",
-          description: "Could not validate document. Please try again or ensure you have a stable connection.",
+          title: "Service Temporarily Unavailable",
+          description: "Could not validate document. Please try again.",
           variant: "destructive",
         });
         setCapturedImage(null);
         setIsProcessing(false);
-        return; // BLOCK: Do not proceed to upload if validation fails
+        return;
       }
 
       // ============================================================
@@ -172,7 +179,7 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
           ...(visitorAccessExpiresAt ? { visitorAccessExpiresAt } : {}),
         });
 
-        toast({ title: "Document uploaded successfully!" });
+        toast({ title: t('common.success') });
         onNext();
       } else {
         throw new Error(response.error || "Failed to upload document");
@@ -180,7 +187,7 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
     } catch (error) {
       console.error("[Document] Upload error:", error);
       toast({
-        title: "Failed to upload document",
+        title: "Upload Failed",
         description: (error as Error).message,
         variant: "destructive",
       });
@@ -266,11 +273,34 @@ const DocumentStep = ({ data, updateData, onNext, onBack, onError }: Props) => {
           </div>
         </div>
       ) : (
-        <CameraCapture
-          onCapture={handleCapture}
-          facingMode="environment"
-          overlayType="document"
-        />
+        <div className="space-y-8">
+          <CameraCapture
+            onCapture={handleCapture}
+            facingMode="environment"
+            overlayType="document"
+          />
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+            <h3 className="text-white font-medium mb-3 flex items-center">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-2" />
+              {t('document.tipsTitle')}
+            </h3>
+            <ul className="space-y-2 text-white/70 text-sm">
+              <li className="flex items-start">
+                <span className="mr-2">•</span>
+                {t('document.tipsLighting')}
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2">•</span>
+                {t('document.tipsSteady')}
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2">•</span>
+                {t('document.tipsFlat')}
+              </li>
+            </ul>
+          </div>
+        </div>
       )}
     </motion.div>
   );

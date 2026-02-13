@@ -125,13 +125,13 @@ export async function optimizeImageWithGuardrails(
     console.log("[Image] Image still too large after optimization");
     return {
       success: false,
-      errorMessage: "Image too large, please retake",
+      errorMessage: "image_too_large",
     };
   } catch (error) {
     console.error("[Image] Optimization failed:", error);
     return {
       success: false,
-      errorMessage: error instanceof Error ? error.message : "Failed to optimize image",
+      errorMessage: "optimization_failed",
     };
   }
 }

@@ -236,58 +236,40 @@ function clampInt(n, min, max) {
   return Math.min(Math.max(x, min), max);
 }
 
-// Helper: Get Access Code from DB based on Schedule
-// Helper: Get Access Code from DB based on Schedule
+// Helper: Get Access Code from DB based on Schedule using robust Intl
 async function getAccessCode() {
   try {
     const now = new Date();
 
-    // Use Intl to get robust Bangkok time parts
+    // We want the time in Asia/Bangkok
     const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Bangkok',
       hour12: false,
-      weekday: 'numeric', // 1=Mon, 7=Sun (Warning: verify this)
+      weekday: 'short', // "Mon", "Tue", etc.
       hour: 'numeric',
       minute: 'numeric'
     });
 
     const parts = formatter.formatToParts(now);
-    const getPart = (type) => parts.find(p => p.type === type)?.value;
+    const part = (type) => parts.find(p => p.type === type)?.value;
 
-    const weekdayStr = getPart('weekday'); // "1"
-    const hourStr = getPart('hour');       // "16"
-    const minuteStr = getPart('minute');   // "15"
+    const weekdayStr = part('weekday'); // "Mon", "Tue"...
+    const hourStr = part('hour');       // "16"
+    const minuteStr = part('minute');   // "15"
 
-    // Intl weekday: 1=Monday ... 7=Sunday (if locale en-US stays consistent with standard)
-    // Actually en-US might return "Monday" if 'weekday': 'long'. 
-    // Let's use 'numeric' -> 1 is Monday? No, usually Sunday is 1 or 7?
-    // Let's debug this locally first or assume 1=Monday based on common Intl behavior? 
-    // Wait, Intl 'numeric' weekday relies on calendar. 
+    // Map weekday short string to 1-7 (Mon-Sun)
+    const dowMap = {
+      "Mon": 1, "Tue": 2, "Wed": 3, "Thu": 4, "Fri": 5, "Sat": 6, "Sun": 7
+    };
 
-    // SAFER APPROACH: Use getDay() on a shifted date constructed correctly OR map string.
-    // Let's use 'short' -> "Mon", "Tue" and map it manually to be 100% sure.
-  } catch (e) {
-    // ...
-  }
-}
+    const dow = dowMap[weekdayStr];
+    if (!dow) {
+      console.error(`[getAccessCode] Failed to map weekday: ${weekdayStr}`);
+      return null;
+    }
 
-// RETRY: Better Logic using toLocaleString
-async function getAccessCode() {
-  try {
-    const now = new Date();
-
-    const options = { timeZone: 'Asia/Bangkok', hour12: false, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' };
-    const bangkokStr = now.toLocaleString('en-US', options);
-    const bangkokDate = new Date(bangkokStr); // This creates a Date object reflecting the components in LOCAL time
-
-    // Now bangkokDate.getDay() returns local DOW for the "Bangkok time" components
-    // e.g. if Bangkok is Friday 16:00, bangkokDate is "Friday 16:00 Local".
-
-    const dayIndex = bangkokDate.getDay(); // 0=Sun, 1=Mon...
-    const dow = dayIndex === 0 ? 7 : dayIndex; // 1=Mon...7=Sun
-
-    const currentHour = bangkokDate.getHours();
-    const currentMin = bangkokDate.getMinutes();
+    const currentHour = parseInt(hourStr, 10);
+    const currentMin = parseInt(minuteStr, 10);
     const totalMins = currentHour * 60 + currentMin;
 
     console.log(`[getAccessCode] Bangkok Time: ${currentHour}:${currentMin} (dow=${dow}, mins=${totalMins})`);
@@ -309,13 +291,14 @@ async function getAccessCode() {
     if (data && data.length > 0) {
       return data[0].access_code;
     }
+
+    console.warn(`[getAccessCode] No active code found for dow=${dow}, mins=${totalMins}`);
     return null;
   } catch (err) {
     console.error("Exception fetching access code:", err);
     return null;
   }
 }
-
 
 export default async function handler(req, res) {
   setCors(res);
@@ -497,6 +480,15 @@ export default async function handler(req, res) {
           verified_guest_count: verified,
           requires_additional_guest: requires,
           remaining_guest_verifications: Math.max(expected - verified, 0),
+
+          // Pass visitor fields clearly
+          visitor_first_name: session.visitor_first_name,
+          visitor_last_name: session.visitor_last_name,
+          visitor_phone: session.visitor_phone,
+          visitor_reason: session.visitor_reason,
+          visitor_access_code: session.visitor_access_code,
+          visitor_access_granted_at: session.visitor_access_granted_at,
+          visitor_access_expires_at: session.visitor_access_expires_at,
         },
       });
     }
@@ -1266,6 +1258,7 @@ export default async function handler(req, res) {
       // ✅ Fetch Access Code if verified
       let access_code = null;
       if (overallVerified) {
+        // Only run if not already set or for guest flow
         access_code = await getAccessCode();
         if (access_code) {
           // Try to save to DB (extracted_info or new col)
@@ -1276,9 +1269,18 @@ export default async function handler(req, res) {
             access_code_issued_at: new Date().toISOString()
           };
 
+          const now = new Date();
+          const expiresAt = new Date(now.getTime() + 30 * 60 * 1000); // 30 mins
+
+          // IMPORTANT: Update visitor_access_code explicitly for visitors
           await supabase
             .from("demo_sessions")
-            .update({ extracted_info: newExtracted })
+            .update({
+              extracted_info: newExtracted,
+              visitor_access_code: access_code,
+              visitor_access_granted_at: now.toISOString(),
+              visitor_access_expires_at: expiresAt.toISOString()
+            })
             .eq("session_token", session_token);
         }
       }
