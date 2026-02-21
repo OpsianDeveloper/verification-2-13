@@ -51,14 +51,14 @@ function extractBooking(bodyText) {
     ).trim().replace(/^'+/, "");
 
     const confirmationRaw = (
-        text.match(/Confirmation Number[:\s]+([A-Z0-9-]+)/i)?.[1] ||
-        text.match(/Res\s*Id[:\s]+([A-Z0-9-]+)/i)?.[1] ||
-        text.match(/confirmation number[:\s]+([A-Z0-9]+)/i)?.[1] ||
+        text.match(/Confirmation Number[:\s]+([A-Z0-9.\/-]+)/i)?.[1] ||
+        text.match(/Res\s*Id[:\s]+([A-Z0-9.\/-]+)/i)?.[1] ||
+        text.match(/confirmation number[:\s]+([A-Z0-9.\/-]+)/i)?.[1] ||
         ""
     ).trim();
 
     const sourceResIdRaw =
-        (text.match(/Source Reservation ID[:\s]+([A-Z0-9-]+)/i)?.[1] || "").trim();
+        (text.match(/Source Reservation ID[:\s]+([A-Z0-9.\/-]+)/i)?.[1] || "").trim();
 
     let adults = parseInt(text.match(/Adults[:\s]*(\d+)/i)?.[1] || "0", 10) || 0;
     let children = parseInt(text.match(/Children[:\s]*(\d+)/i)?.[1] || "0", 10) || 0;

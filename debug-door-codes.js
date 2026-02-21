@@ -32,15 +32,15 @@ async function test() {
         const hourStr = part('hour');       // "16"
         const minuteStr = part('minute');   // "15"
 
-        // Map weekday short string to 1-7 (Mon-Sun)
+        // Map weekday short string to 0-6 (Sun-Sat)
         const dowMap = {
-            "Mon": 1, "Tue": 2, "Wed": 3, "Thu": 4, "Fri": 5, "Sat": 6, "Sun": 7
+            "Sun": 0, "Mon": 1, "Tue": 2, "Wed": 3, "Thu": 4, "Fri": 5, "Sat": 6
         };
 
         const dow = dowMap[weekdayStr];
         console.log(`Raw parts: weekday=${weekdayStr}, hour=${hourStr}, minute=${minuteStr}`);
 
-        if (!dow) {
+        if (dow === undefined) {
             console.error(`FAILED to map weekday: ${weekdayStr}`);
             return;
         }

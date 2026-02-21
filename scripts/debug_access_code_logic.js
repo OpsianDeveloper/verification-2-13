@@ -12,13 +12,8 @@ function testGetAccessCodeLogic() {
 
     console.log("Calculated Bangkok Time:", bangkokTime.toString());
 
-    const dayIndex = bangkokTime.getDay(); // 0=Sun, 1=Mon
-    console.log("JS getDay() (0=Sun):", dayIndex);
-
-    // The logic in verification.js:
-    // const dow = dayIndex === 0 ? 7 : dayIndex;
-    const dow = dayIndex === 0 ? 7 : dayIndex;
-    console.log("Mapped DOW (1=Mon...7=Sun):", dow);
+    const dow = bangkokTime.getDay(); // 0=Sun, 1=Mon...6=Sat
+    console.log("Mapped DOW (0=Sun...6=Sat):", dow);
 
     const currentHour = bangkokTime.getHours();
     const currentMin = bangkokTime.getMinutes();
