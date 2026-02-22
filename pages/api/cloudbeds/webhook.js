@@ -1,23 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { getReservation } from "../../../lib/cloudbeds";
+import { normalizeGuestName, normalizeReservationNumber } from "../../../lib/utils";
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Helper normalization functions (same as verify.js)
-function normalizeGuestName(name) {
-    return String(name || "")
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, " ")
-        .replace(/[^\p{L}\p{N}\s]/gu, "");
-}
-
-function normalizeReservationNumber(v) {
-    return String(v || "").toUpperCase().trim().replace(/[\s-]/g, "");
-}
+// Helper normalization functions removed in favor of lib/utils imports
 
 export default async function handler(req, res) {
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });

@@ -36,7 +36,7 @@ function normalizeGuestName(name) {
 }
 
 function normalizeReservationNumber(v) {
-    return String(v || "").toUpperCase().trim().replace(/[\s-]/g, "");
+    return String(v || "").toUpperCase().trim().replace(/[^A-Z0-9]/g, "");
 }
 
 // ── Same extraction as updated inbound.js ──
