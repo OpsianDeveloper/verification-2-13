@@ -18,11 +18,11 @@ console.log('--- Building Frontend ---');
 
 // Install frontend dependencies
 console.log('Installing frontend dependencies...');
-run('npm install --production=false', frontendDir);
+run('npm.cmd install --production=false', frontendDir);
 
 // Build frontend
 console.log('Building Vite app...');
-run('npx vite build', frontendDir);
+run('npx.cmd vite build', frontendDir);
 
 // --- Step 2: Move Artifacts ---
 console.log('--- Moving Frontend Artifacts ---');
