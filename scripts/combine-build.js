@@ -16,13 +16,18 @@ const publicDir = path.join(currentDir, 'public');
 // --- Step 1: Frontend Build ---
 console.log('--- Building Frontend ---');
 
+// Detect platform
+const isWindows = process.platform === 'win32';
+const npmCmd = isWindows ? 'npm.cmd' : 'npm';
+const npxCmd = isWindows ? 'npx.cmd' : 'npx';
+
 // Install frontend dependencies
 console.log('Installing frontend dependencies...');
-run('npm.cmd install --production=false', frontendDir);
+run(`${npmCmd} install --production=false`, frontendDir);
 
 // Build frontend
 console.log('Building Vite app...');
-run('npx.cmd vite build', frontendDir);
+run(`${npxCmd} vite build`, frontendDir);
 
 // --- Step 2: Move Artifacts ---
 console.log('--- Moving Frontend Artifacts ---');
